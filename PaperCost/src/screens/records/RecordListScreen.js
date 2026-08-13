@@ -88,7 +88,7 @@ export default function RecordListScreen({ navigation }) {
   const renderSectionHeader = ({ section }) => {
     const selectedInSection = section.data.filter(r => selectedIds.includes(r.id));
     const recordsToSum = selectedInSection.length > 0 ? selectedInSection : section.data;
-    const totalCost = recordsToSum.reduce((sum, r) => sum + (r.bulkTotal || 0), 0);
+    const totalCost = recordsToSum.reduce((sum, r) => sum + (r.totalPerCopy || 0), 0);
 
     return (
       <View style={styles.sectionHeader}>
@@ -126,7 +126,7 @@ export default function RecordListScreen({ navigation }) {
           </Text>
         </View>
         <Text style={styles.details}>
-          ₹{item.totalPerCopy?.toFixed(2)} per copy · Qty: {item.bulkQty} · Total: ₹{item.bulkTotal?.toFixed(2)}
+          ₹{item.totalPerCopy?.toFixed(2)} per copy
         </Text>
       </TouchableOpacity>
     );
@@ -138,7 +138,7 @@ export default function RecordListScreen({ navigation }) {
         <EmptyState
           icon="📑"
           title="No Records Yet"
-          subtitle="Records are saved automatically when you save bulk quantities in the Summary screen."
+          subtitle="Records are saved when you tap 'Save Calculation' in the Summary screen."
         />
       </View>
     );

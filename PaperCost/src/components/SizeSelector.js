@@ -45,24 +45,24 @@ export default function SizeSelector({
       {sizeKey === 'Custom' && (
         <View style={styles.customRow}>
           <View style={styles.customField}>
-            <Text style={styles.customLabel}>Width (cm)</Text>
+            <Text style={styles.customLabel}>Width (in)</Text>
             <TextInput
               style={styles.input}
               value={customW ? String(customW) : ''}
               onChangeText={(v) => onCustomWChange(v ? parseFloat(v) || '' : '')}
               keyboardType="decimal-pad"
-              placeholder="cm"
+              placeholder="inches"
               placeholderTextColor="#9CA3AF"
             />
           </View>
           <View style={styles.customField}>
-            <Text style={styles.customLabel}>Height (cm)</Text>
+            <Text style={styles.customLabel}>Height (in)</Text>
             <TextInput
               style={styles.input}
               value={customH ? String(customH) : ''}
               onChangeText={(v) => onCustomHChange(v ? parseFloat(v) || '' : '')}
               keyboardType="decimal-pad"
-              placeholder="cm"
+              placeholder="inches"
               placeholderTextColor="#9CA3AF"
             />
           </View>

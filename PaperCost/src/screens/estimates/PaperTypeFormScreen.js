@@ -8,11 +8,12 @@ import {
   Modal,
   FlatList,
   Alert,
+  Switch,
   StyleSheet,
 } from 'react-native';
 import { getTemplates } from '../../storage/templates';
 import { getLastUsedForKey, setLastUsedForKey } from '../../storage/lastUsed';
-import { getArea } from '../../utils/sizes';
+import { getArea, getDimensionsInches } from '../../utils/sizes';
 import { calcPaperCost, calcTotalPerCopy } from '../../utils/formula';
 import FieldRow from '../../components/FieldRow';
 import SizeSelector from '../../components/SizeSelector';
@@ -33,6 +34,7 @@ export default function PaperTypeFormScreen({ route, navigation }) {
   const [price, setPrice] = useState('');
   const [printCost, setPrintCost] = useState('');
   const [bindCost, setBindCost] = useState('');
+  const [lamination, setLamination] = useState(false);
   const [note, setNote] = useState('');
   const [lastUsedPrice, setLastUsedPrice] = useState(null);
   const [lastUsedPrintCost, setLastUsedPrintCost] = useState(null);
@@ -80,6 +82,7 @@ export default function PaperTypeFormScreen({ route, navigation }) {
     setPrice(pt.price ? String(pt.price) : '');
     setPrintCost(pt.printCost ? String(pt.printCost) : '');
     setBindCost(pt.bindCost ? String(pt.bindCost) : '');
+    setLamination(pt.lamination || false);
     setNote(pt.note || '');
   };
 
@@ -139,6 +142,14 @@ export default function PaperTypeFormScreen({ route, navigation }) {
     }
     setNote('');
     setPrice('');
+    setLamination(false);
+  };
+
+  const calcLaminationCost = () => {
+    if (!lamination) return 0;
+    const dims = getDimensionsInches(sizeKey, parseFloat(customW) || 0, parseFloat(customH) || 0);
+    const paperDimension = dims.w * dims.h;
+    return (paperDimension * 0.5) / 100;
   };
 
   const handleSave = async () => {
@@ -186,11 +197,13 @@ export default function PaperTypeFormScreen({ route, navigation }) {
 
     const pcVal = printCost ? parseFloat(printCost) : 0;
     const bcVal = bindCost ? parseFloat(bindCost) : 0;
+    const laminationCost = calcLaminationCost();
 
     const totalPerCopy = calcTotalPerCopy({
       paperCost,
       printCost: pcVal,
       bindCost: bcVal,
+      laminationCost,
     });
 
     const paperType = {
@@ -204,6 +217,8 @@ export default function PaperTypeFormScreen({ route, navigation }) {
       price: priceVal,
       printCost: pcVal,
       bindCost: bcVal,
+      lamination,
+      laminationCost,
       note: note.trim(),
       area,
       paperCost,
@@ -313,7 +328,7 @@ export default function PaperTypeFormScreen({ route, navigation }) {
         />
       </FieldRow>
 
-      <FieldRow label="Print Cost (₹ per copy)">
+      <FieldRow label="Print Cost (₹)">
         <PriceField
           value={printCost}
           onChange={setPrintCost}
@@ -322,13 +337,27 @@ export default function PaperTypeFormScreen({ route, navigation }) {
         />
       </FieldRow>
 
-      <FieldRow label="Binding Cost (₹ per copy)">
+      <FieldRow label="Binding Cost (₹)">
         <PriceField
           value={bindCost}
           onChange={setBindCost}
           lastUsedPrice={lastUsedBindCost}
           placeholder="0"
         />
+      </FieldRow>
+
+      <FieldRow label="Lamination">
+        <View style={styles.laminationRow}>
+          <Switch
+            value={lamination}
+            onValueChange={setLamination}
+            trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
+            thumbColor={lamination ? '#FFFFFF' : '#F9FAFB'}
+          />
+          <Text style={styles.laminationHint}>
+            {lamination ? `₹${calcLaminationCost().toFixed(2)} per copy` : 'Off'}
+          </Text>
+        </View>
       </FieldRow>
 
       <FieldRow label="Note">
@@ -444,6 +473,16 @@ const styles = StyleSheet.create({
   noteInput: {
     height: 80,
     paddingTop: 12,
+  },
+  laminationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  laminationHint: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   saveBtn: {
     backgroundColor: '#1E293B',

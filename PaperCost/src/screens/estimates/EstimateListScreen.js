@@ -93,11 +93,7 @@ export default function EstimateListScreen({ navigation }) {
       <View style={styles.cardBody}>
         <Text style={styles.price}>₹{item.totalPerCopy?.toFixed(2)} / copy</Text>
       </View>
-      {item.bulkTotal ? (
-        <Text style={styles.bulk}>
-          Bulk ({item.bulkQty}): ₹{item.bulkTotal?.toFixed(2)}
-        </Text>
-      ) : null}
+
     </TouchableOpacity>
   );
 
@@ -206,11 +202,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
   },
-  bulk: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 4,
-  },
+
   headerBtn: {
     marginRight: 16,
     width: 32,

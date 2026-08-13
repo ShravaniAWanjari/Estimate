@@ -123,7 +123,7 @@ export default function TemplateFormScreen({ route, navigation }) {
         />
       </FieldRow>
 
-      <FieldRow label="Print Cost (₹ per copy)">
+      <FieldRow label="Print Cost (₹)">
         <TextInput
           style={styles.input}
           value={printCost}
@@ -134,7 +134,7 @@ export default function TemplateFormScreen({ route, navigation }) {
         />
       </FieldRow>
 
-      <FieldRow label="Binding Cost (₹ per copy)">
+      <FieldRow label="Binding Cost (₹)">
         <TextInput
           style={styles.input}
           value={bindCost}

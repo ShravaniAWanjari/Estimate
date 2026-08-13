@@ -12,7 +12,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import uuid from 'react-native-uuid';
 import { getEstimates, saveEstimate } from '../../storage/estimates';
 import { getSettings } from '../../storage/settings';
-import { calcBulkTotal } from '../../utils/formula';
 import FieldRow from '../../components/FieldRow';
 import ClientNameInput from '../../components/ClientNameInput';
 
@@ -23,7 +22,6 @@ export default function EstimateFormScreen({ route, navigation }) {
 
   const [clientName, setClientName] = useState('');
   const [productType, setProductType] = useState('Book');
-  const [bulkQty, setBulkQty] = useState('100');
   const [paperTypes, setPaperTypes] = useState([]);
   const [existingEstimate, setExistingEstimate] = useState(null);
 
@@ -33,7 +31,6 @@ export default function EstimateFormScreen({ route, navigation }) {
       loadEstimate();
     } else {
       navigation.setOptions({ title: 'New Estimate' });
-      loadDefaults();
     }
   }, [estimateId]);
 
@@ -44,14 +41,8 @@ export default function EstimateFormScreen({ route, navigation }) {
       setExistingEstimate(est);
       setClientName(est.clientName || '');
       setProductType(est.productType || 'Book');
-      setBulkQty(String(est.bulkQty || 100));
       setPaperTypes(est.paperTypes || []);
     }
-  };
-
-  const loadDefaults = async () => {
-    const settings = await getSettings();
-    setBulkQty(String(settings.defaultBulkQty || 100));
   };
 
   const handleAddPaperType = () => {
@@ -95,8 +86,6 @@ export default function EstimateFormScreen({ route, navigation }) {
     }
 
     const totalPerCopy = paperTypes.reduce((sum, pt) => sum + (pt.totalPerCopy || 0), 0);
-    const qty = parseInt(bulkQty, 10) || 1;
-    const bulkTotal = calcBulkTotal(totalPerCopy, qty);
 
     const estimate = {
       id: existingEstimate?.id || uuid.v4(),
@@ -104,10 +93,8 @@ export default function EstimateFormScreen({ route, navigation }) {
       updatedAt: Date.now(),
       clientName: clientName.trim(),
       productType,
-      bulkQty: qty,
       paperTypes,
       totalPerCopy,
-      bulkTotal,
     };
 
     await saveEstimate(estimate);
@@ -151,17 +138,6 @@ export default function EstimateFormScreen({ route, navigation }) {
             );
           })}
         </ScrollView>
-      </FieldRow>
-
-      <FieldRow label="Bulk Quantity">
-        <TextInput
-          style={styles.input}
-          value={bulkQty}
-          onChangeText={setBulkQty}
-          keyboardType="number-pad"
-          placeholder="100"
-          placeholderTextColor="#9CA3AF"
-        />
       </FieldRow>
 
       {/* Paper types section */}

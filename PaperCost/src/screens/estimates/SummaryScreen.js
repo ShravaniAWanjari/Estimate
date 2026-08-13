@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -10,13 +9,10 @@ import {
 import uuid from 'react-native-uuid';
 import { getEstimates, saveEstimate } from '../../storage/estimates';
 import { saveRecord } from '../../storage/records';
-import { calcBulkTotal } from '../../utils/formula';
 
 export default function SummaryScreen({ route, navigation }) {
   const estimateId = route.params?.estimateId;
   const [estimate, setEstimate] = useState(null);
-  const [bulkQty, setBulkQty] = useState('');
-  const [bulkTotal, setBulkTotalState] = useState(0);
   const [recordSaved, setRecordSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -42,41 +38,24 @@ export default function SummaryScreen({ route, navigation }) {
     const est = all.find((e) => e.id === estimateId);
     if (est) {
       setEstimate(est);
-      setBulkQty(String(est.bulkQty || 1));
-      setBulkTotalState(est.bulkTotal || 0);
     }
   };
 
-  const handleQtyChange = (val) => {
-    setBulkQty(val);
-    setSaved(false);
-    const qty = parseInt(val, 10) || 0;
-    if (estimate) {
-      setBulkTotalState(calcBulkTotal(estimate.totalPerCopy, qty));
-    }
-  };
-
-  const handleSaveBulk = async () => {
+  const handleSave = async () => {
     if (!estimate || saving) return;
     setSaving(true);
-    const qty = parseInt(bulkQty, 10) || 1;
-    const newBulkTotal = calcBulkTotal(estimate.totalPerCopy, qty);
-    const updated = { ...estimate, bulkQty: qty, bulkTotal: newBulkTotal };
-    await saveEstimate(updated);
-    setEstimate(updated);
-    setBulkTotalState(newBulkTotal);
+
+    await saveEstimate(estimate);
 
     // Save a record snapshot
     const record = {
       id: uuid.v4(),
       savedAt: Date.now(),
-      clientName: updated.clientName,
-      productType: updated.productType,
-      bulkQty: qty,
-      totalPerCopy: updated.totalPerCopy,
-      bulkTotal: newBulkTotal,
-      estimateId: updated.id,
-      paperTypes: [...updated.paperTypes],
+      clientName: estimate.clientName,
+      productType: estimate.productType,
+      totalPerCopy: estimate.totalPerCopy,
+      estimateId: estimate.id,
+      paperTypes: [...estimate.paperTypes],
     };
     await saveRecord(record);
     setRecordSaved(true);
@@ -102,7 +81,7 @@ export default function SummaryScreen({ route, navigation }) {
         <Text style={styles.clientName}>{estimate.clientName}</Text>
       </View>
 
-      {/* Product type badge — positioned before paper types */}
+      {/* Product type badge */}
       <View style={styles.productBadge}>
         <Text style={styles.productBadgeText}>{estimate.productType}</Text>
       </View>
@@ -146,6 +125,12 @@ export default function SummaryScreen({ route, navigation }) {
               <Text style={styles.costValue}>₹{pt.bindCost?.toFixed(2)}</Text>
             </View>
           ) : null}
+          {pt.lamination ? (
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Lamination</Text>
+              <Text style={styles.costValue}>₹{pt.laminationCost?.toFixed(2)}</Text>
+            </View>
+          ) : null}
           <View style={styles.cardDivider} />
           <View style={styles.costRow}>
             <Text style={styles.totalLabel}>Per Copy</Text>
@@ -162,29 +147,15 @@ export default function SummaryScreen({ route, navigation }) {
         </Text>
       </View>
 
-      {/* Bulk section */}
-      <View style={styles.bulkSection}>
-        <Text style={styles.bulkTitle}>Bulk Order</Text>
-        <View style={styles.bulkInputRow}>
-          <Text style={styles.bulkLabel}>Quantity</Text>
-          <TextInput
-            style={styles.bulkInput}
-            value={bulkQty}
-            onChangeText={handleQtyChange}
-            keyboardType="number-pad"
-          />
-        </View>
-        <View style={styles.bulkTotalRow}>
-          <Text style={styles.bulkTotalLabel}>Bulk Total</Text>
-          <Text style={styles.bulkTotalValue}>₹{bulkTotal.toFixed(2)}</Text>
-        </View>
+      {/* Save section */}
+      <View style={styles.saveSection}>
         <TouchableOpacity
-          style={[styles.saveBulkBtn, saving && styles.saveBulkBtnDisabled]}
-          onPress={handleSaveBulk}
+          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+          onPress={handleSave}
           activeOpacity={0.8}
           disabled={saving}
         >
-          <Text style={styles.saveBulkBtnText}>{saving ? 'Saving...' : 'Save Calculation'}</Text>
+          <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Calculation'}</Text>
         </TouchableOpacity>
         {recordSaved && (
           <View style={styles.recordSavedBadge}>
@@ -326,7 +297,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
-  bulkSection: {
+  saveSection: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -334,61 +305,17 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
-  bulkTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  bulkInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
-  },
-  bulkLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  bulkInput: {
-    flex: 1,
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
-  },
-  bulkTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  bulkTotalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  bulkTotalValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  saveBulkBtn: {
+  saveBtn: {
     backgroundColor: '#1E293B',
     height: 44,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  saveBulkBtnDisabled: {
+  saveBtnDisabled: {
     opacity: 0.5,
   },
-  saveBulkBtnText: {
+  saveBtnText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
