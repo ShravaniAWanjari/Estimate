@@ -59,10 +59,10 @@ export default function TemplateListScreen({ navigation }) {
         <Text style={styles.metaText}>{item.gsm} GSM</Text>
         <Text style={styles.dot}>·</Text>
         <Text style={styles.metaText}>{item.sizeKey}</Text>
-        {item.sheets ? (
+        {(item.noOfSheets || item.sheets) ? (
           <>
             <Text style={styles.dot}>·</Text>
-            <Text style={styles.metaText}>{item.sheets} sheets</Text>
+            <Text style={styles.metaText}>{item.noOfSheets || item.sheets} sheets</Text>
           </>
         ) : null}
       </View>
