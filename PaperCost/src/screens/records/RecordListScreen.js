@@ -88,7 +88,10 @@ export default function RecordListScreen({ navigation }) {
   const renderSectionHeader = ({ section }) => {
     const selectedInSection = section.data.filter(r => selectedIds.includes(r.id));
     const recordsToSum = selectedInSection.length > 0 ? selectedInSection : section.data;
-    const totalCost = recordsToSum.reduce((sum, r) => sum + (r.totalPerCopy || 0), 0);
+    const totalCost = recordsToSum.reduce(
+      (sum, r) => sum + (r.totalCost !== undefined ? r.totalCost : (r.totalPerCopy || 0)),
+      0
+    );
 
     return (
       <View style={styles.sectionHeader}>
@@ -126,7 +129,7 @@ export default function RecordListScreen({ navigation }) {
           </Text>
         </View>
         <Text style={styles.details}>
-          ₹{item.totalPerCopy?.toFixed(2)} per copy
+          Total: ₹{(item.totalCost !== undefined ? item.totalCost : (item.totalPerCopy || 0)).toFixed(2)}
         </Text>
       </TouchableOpacity>
     );

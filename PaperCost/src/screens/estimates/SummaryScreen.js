@@ -47,13 +47,15 @@ export default function SummaryScreen({ route, navigation }) {
 
     await saveEstimate(estimate);
 
+    const grandTotal = estimate.totalCost !== undefined ? estimate.totalCost : (estimate.totalPerCopy || 0);
+
     // Save a record snapshot
     const record = {
       id: uuid.v4(),
       savedAt: Date.now(),
       clientName: estimate.clientName,
       productType: estimate.productType,
-      totalPerCopy: estimate.totalPerCopy,
+      totalCost: grandTotal,
       estimateId: estimate.id,
       paperTypes: [...estimate.paperTypes],
     };
@@ -71,6 +73,8 @@ export default function SummaryScreen({ route, navigation }) {
     );
   }
 
+  const grandTotal = estimate.totalCost !== undefined ? estimate.totalCost : (estimate.totalPerCopy || 0);
+
   return (
     <ScrollView
       style={styles.container}
@@ -87,63 +91,73 @@ export default function SummaryScreen({ route, navigation }) {
       </View>
 
       {/* Paper type cards */}
-      {estimate.paperTypes.map((pt, index) => (
-        <View key={index} style={styles.card}>
-          <Text style={styles.cardTitle}>{pt.name}</Text>
-          <View style={styles.cardGrid}>
-            <View style={styles.gridItem}>
-              <Text style={styles.gridLabel}>GSM</Text>
-              <Text style={styles.gridValue}>{pt.gsm}</Text>
+      {estimate.paperTypes.map((pt, index) => {
+        const itemTotal = pt.totalCost !== undefined ? pt.totalCost : (pt.totalPerCopy || 0);
+        const sheetsCount = pt.noOfSheets || pt.sheets || 0;
+        return (
+          <View key={index} style={styles.card}>
+            <Text style={styles.cardTitle}>{pt.name}</Text>
+            <View style={styles.cardGrid}>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>GSM</Text>
+                <Text style={styles.gridValue}>{pt.gsm}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Size</Text>
+                <Text style={styles.gridValue}>{pt.sizeKey}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Sheets</Text>
+                <Text style={styles.gridValue}>{sheetsCount}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Price/kg</Text>
+                <Text style={styles.gridValue}>₹{pt.price}</Text>
+              </View>
             </View>
-            <View style={styles.gridItem}>
-              <Text style={styles.gridLabel}>Size</Text>
-              <Text style={styles.gridValue}>{pt.sizeKey}</Text>
+            <View style={styles.cardDivider} />
+            {pt.perSheetCost ? (
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Per Sheet Cost</Text>
+                <Text style={styles.costValue}>₹{pt.perSheetCost?.toFixed(4)}</Text>
+              </View>
+            ) : null}
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Paper Cost ({sheetsCount} sheets)</Text>
+              <Text style={styles.costValue}>₹{pt.paperCost?.toFixed(2)}</Text>
             </View>
-            <View style={styles.gridItem}>
-              <Text style={styles.gridLabel}>Sheets</Text>
-              <Text style={styles.gridValue}>{pt.sheets}</Text>
-            </View>
-            <View style={styles.gridItem}>
-              <Text style={styles.gridLabel}>Price/kg</Text>
-              <Text style={styles.gridValue}>₹{pt.price}</Text>
+            {pt.printCost ? (
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Print Cost</Text>
+                <Text style={styles.costValue}>₹{pt.printCost?.toFixed(2)}</Text>
+              </View>
+            ) : null}
+            {pt.bindCost ? (
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Binding Cost</Text>
+                <Text style={styles.costValue}>₹{pt.bindCost?.toFixed(2)}</Text>
+              </View>
+            ) : null}
+            {pt.lamination ? (
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Lamination Cost</Text>
+                <Text style={styles.costValue}>₹{pt.laminationCost?.toFixed(2)}</Text>
+              </View>
+            ) : null}
+            <View style={styles.cardDivider} />
+            <View style={styles.costRow}>
+              <Text style={styles.totalLabel}>Subtotal</Text>
+              <Text style={styles.totalValue}>₹{itemTotal.toFixed(2)}</Text>
             </View>
           </View>
-          <View style={styles.cardDivider} />
-          <View style={styles.costRow}>
-            <Text style={styles.costLabel}>Paper Cost</Text>
-            <Text style={styles.costValue}>₹{pt.paperCost?.toFixed(2)}</Text>
-          </View>
-          {pt.printCost ? (
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Print Cost</Text>
-              <Text style={styles.costValue}>₹{pt.printCost?.toFixed(2)}</Text>
-            </View>
-          ) : null}
-          {pt.bindCost ? (
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Binding Cost</Text>
-              <Text style={styles.costValue}>₹{pt.bindCost?.toFixed(2)}</Text>
-            </View>
-          ) : null}
-          {pt.lamination ? (
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Lamination</Text>
-              <Text style={styles.costValue}>₹{pt.laminationCost?.toFixed(2)}</Text>
-            </View>
-          ) : null}
-          <View style={styles.cardDivider} />
-          <View style={styles.costRow}>
-            <Text style={styles.totalLabel}>Per Copy</Text>
-            <Text style={styles.totalValue}>₹{pt.totalPerCopy?.toFixed(2)}</Text>
-          </View>
-        </View>
-      ))}
+        );
+      })}
 
-      {/* Total per copy */}
+      {/* Grand Total */}
       <View style={styles.totalSection}>
-        <Text style={styles.totalSectionLabel}>Total Per Copy</Text>
+        <Text style={styles.totalSectionLabel}>Total Cost</Text>
         <Text style={styles.totalSectionValue}>
-          ₹{estimate.totalPerCopy?.toFixed(2)}
+          ₹{grandTotal.toFixed(2)}
         </Text>
       </View>
 

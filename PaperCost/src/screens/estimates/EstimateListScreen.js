@@ -91,7 +91,9 @@ export default function EstimateListScreen({ navigation }) {
         </Text>
       </View>
       <View style={styles.cardBody}>
-        <Text style={styles.price}>₹{item.totalPerCopy?.toFixed(2)} / copy</Text>
+        <Text style={styles.price}>
+          Total: ₹{(item.totalCost !== undefined ? item.totalCost : (item.totalPerCopy || 0)).toFixed(2)}
+        </Text>
       </View>
 
     </TouchableOpacity>

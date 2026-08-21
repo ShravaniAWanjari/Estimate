@@ -1,17 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   ScrollView,
   TouchableOpacity,
   Alert,
   StyleSheet,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import uuid from 'react-native-uuid';
 import { getEstimates, saveEstimate } from '../../storage/estimates';
-import { getSettings } from '../../storage/settings';
 import FieldRow from '../../components/FieldRow';
 import ClientNameInput from '../../components/ClientNameInput';
 
@@ -85,7 +82,10 @@ export default function EstimateFormScreen({ route, navigation }) {
       return;
     }
 
-    const totalPerCopy = paperTypes.reduce((sum, pt) => sum + (pt.totalPerCopy || 0), 0);
+    const totalCost = paperTypes.reduce(
+      (sum, pt) => sum + (pt.totalCost !== undefined ? pt.totalCost : (pt.totalPerCopy || 0)),
+      0
+    );
 
     const estimate = {
       id: existingEstimate?.id || uuid.v4(),
@@ -94,7 +94,7 @@ export default function EstimateFormScreen({ route, navigation }) {
       clientName: clientName.trim(),
       productType,
       paperTypes,
-      totalPerCopy,
+      totalCost,
     };
 
     await saveEstimate(estimate);
@@ -146,35 +146,40 @@ export default function EstimateFormScreen({ route, navigation }) {
         <Text style={styles.sectionCount}>{paperTypes.length} added</Text>
       </View>
 
-      {paperTypes.map((pt, index) => (
-        <View key={index} style={styles.paperCard}>
-          <View style={styles.paperCardHeader}>
-            <Text style={styles.paperName}>{pt.name}</Text>
-            <Text style={styles.paperCost}>₹{pt.totalPerCopy?.toFixed(2)}</Text>
+      {paperTypes.map((pt, index) => {
+        const itemCost = pt.totalCost !== undefined ? pt.totalCost : (pt.totalPerCopy || 0);
+        const sheetsCount = pt.noOfSheets || pt.sheets || 0;
+        return (
+          <View key={index} style={styles.paperCard}>
+            <View style={styles.paperCardHeader}>
+              <Text style={styles.paperName}>{pt.name}</Text>
+              <Text style={styles.paperCost}>₹{itemCost.toFixed(2)}</Text>
+            </View>
+            <View style={styles.paperMeta}>
+              <Text style={styles.paperMetaText}>
+                {pt.gsm} GSM · {pt.sizeKey} · {sheetsCount} sheets · ₹{pt.price}/kg
+                {pt.lamination ? ' · Lamination' : ''}
+              </Text>
+            </View>
+            <View style={styles.paperActions}>
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => handleEditPaperType(pt, index)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.editBtnText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.removeBtn}
+                onPress={() => handleDeletePaperType(index)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.removeBtnText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.paperMeta}>
-            <Text style={styles.paperMetaText}>
-              {pt.gsm} GSM · {pt.sizeKey} · {pt.sheets} sheets · ₹{pt.price}/kg
-            </Text>
-          </View>
-          <View style={styles.paperActions}>
-            <TouchableOpacity
-              style={styles.editBtn}
-              onPress={() => handleEditPaperType(pt, index)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.editBtnText}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.removeBtn}
-              onPress={() => handleDeletePaperType(index)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.removeBtnText}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ))}
+        );
+      })}
 
       <TouchableOpacity
         style={styles.addBtn}
@@ -203,16 +208,6 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 40,
-  },
-  input: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
   },
   chipRow: {
     flexDirection: 'row',

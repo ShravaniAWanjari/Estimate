@@ -1,49 +1,41 @@
-// Standard sizes stored in metres (length × width)
-// Dimensions shown to user in inches
+// Standard sizes stored in inches (width × height)
 export const STANDARD_SIZES = {
-  A3: [0.420, 0.297],
-  A4: [0.297, 0.210],
-  A5: [0.210, 0.148],
-  A6: [0.148, 0.105],
-  B4: [0.353, 0.250],
-  B5: [0.250, 0.176],
-  Letter: [0.279, 0.216],
+  '18 × 23': [18, 23],
+  '20 × 30': [20, 30],
+  '23 × 36': [23, 36],
+  A4: [8.27, 11.69],
+  A3: [11.69, 16.54],
+  A5: [5.83, 8.27],
+  Letter: [8.5, 11.0],
   Custom: null,
 };
-
-// Convert metres to inches for display
-function metresToInches(m) {
-  return (m * 39.3701).toFixed(2);
-}
 
 // Get display string for a size (in inches)
 export function getSizeDisplay(sizeKey) {
   const dims = STANDARD_SIZES[sizeKey];
   if (!dims) return sizeKey;
-  return `${metresToInches(dims[0])}″ × ${metresToInches(dims[1])}″`;
+  return `${dims[0]}″ × ${dims[1]}″`;
 }
 
-// Get paper area in m² (used for cost formula)
-export function getArea(sizeKey, customW, customH) {
-  if (sizeKey === 'Custom') {
-    if (!customW || !customH) return null;
-    // Custom dimensions entered in inches → convert to metres
-    return (customW * 0.0254) * (customH * 0.0254);
-  }
-  const dims = STANDARD_SIZES[sizeKey];
-  if (!dims) return null;
-  return dims[0] * dims[1];
-}
-
-// Get paper dimensions in inches (for lamination calc)
+// Get paper dimensions in inches
 export function getDimensionsInches(sizeKey, customW, customH) {
   if (sizeKey === 'Custom') {
-    return { w: customW || 0, h: customH || 0 };
+    return {
+      w: parseFloat(customW) || 0,
+      h: parseFloat(customH) || 0,
+    };
   }
   const dims = STANDARD_SIZES[sizeKey];
-  if (!dims) return { w: 0, h: 0 };
+  if (!dims) return { w: 18, h: 23 };
   return {
-    w: parseFloat(metresToInches(dims[0])),
-    h: parseFloat(metresToInches(dims[1])),
+    w: dims[0],
+    h: dims[1],
   };
+}
+
+// Get paper area in sq inches
+export function getAreaSqInches(sizeKey, customW, customH) {
+  const { w, h } = getDimensionsInches(sizeKey, customW, customH);
+  if (!w || !h) return 0;
+  return w * h;
 }

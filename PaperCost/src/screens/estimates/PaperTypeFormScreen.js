@@ -13,8 +13,13 @@ import {
 } from 'react-native';
 import { getTemplates } from '../../storage/templates';
 import { getLastUsedForKey, setLastUsedForKey } from '../../storage/lastUsed';
-import { getArea, getDimensionsInches } from '../../utils/sizes';
-import { calcPaperCost, calcTotalPerCopy } from '../../utils/formula';
+import { getDimensionsInches, getAreaSqInches } from '../../utils/sizes';
+import {
+  calcPerSheetCost,
+  calcPaperCost,
+  calcLaminationCost,
+  calcTotalCost,
+} from '../../utils/formula';
 import FieldRow from '../../components/FieldRow';
 import SizeSelector from '../../components/SizeSelector';
 import PriceField from '../../components/PriceField';
@@ -27,14 +32,15 @@ export default function PaperTypeFormScreen({ route, navigation }) {
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState(null);
   const [gsm, setGsm] = useState('');
-  const [sizeKey, setSizeKey] = useState('A4');
+  const [sizeKey, setSizeKey] = useState('18 × 23');
   const [customW, setCustomW] = useState('');
   const [customH, setCustomH] = useState('');
-  const [sheets, setSheets] = useState('');
+  const [noOfSheets, setNoOfSheets] = useState('');
   const [price, setPrice] = useState('');
   const [printCost, setPrintCost] = useState('');
   const [bindCost, setBindCost] = useState('');
   const [lamination, setLamination] = useState(false);
+  const [laminationCost, setLaminationCost] = useState('');
   const [note, setNote] = useState('');
   const [lastUsedPrice, setLastUsedPrice] = useState(null);
   const [lastUsedPrintCost, setLastUsedPrintCost] = useState(null);
@@ -58,6 +64,18 @@ export default function PaperTypeFormScreen({ route, navigation }) {
     loadPrices();
   }, [gsm, sizeKey]);
 
+  // Recalculate lamination cost when dimensions or sheets change
+  useEffect(() => {
+    if (lamination && sizeKey) {
+      const area = getAreaSqInches(sizeKey, parseFloat(customW) || 0, parseFloat(customH) || 0);
+      const sheetsVal = parseInt(noOfSheets, 10) || 0;
+      if (area && sheetsVal) {
+        const cost = calcLaminationCost({ areaSqInches: area, noOfSheets: sheetsVal }).toFixed(2);
+        setLaminationCost(cost);
+      }
+    }
+  }, [sizeKey, customW, customH, noOfSheets, lamination]);
+
   const [templateModalVisible, setTemplateModalVisible] = useState(false);
   const [templates, setTemplates] = useState([]);
 
@@ -75,14 +93,15 @@ export default function PaperTypeFormScreen({ route, navigation }) {
     setName(pt.name || '');
     setTemplateId(pt.templateId || null);
     setGsm(pt.gsm ? String(pt.gsm) : '');
-    setSizeKey(pt.sizeKey || 'A4');
+    setSizeKey(pt.sizeKey || '18 × 23');
     setCustomW(pt.customW ? String(pt.customW) : '');
     setCustomH(pt.customH ? String(pt.customH) : '');
-    setSheets(pt.sheets ? String(pt.sheets) : '');
+    setNoOfSheets(pt.noOfSheets ? String(pt.noOfSheets) : (pt.sheets ? String(pt.sheets) : ''));
     setPrice(pt.price ? String(pt.price) : '');
     setPrintCost(pt.printCost ? String(pt.printCost) : '');
     setBindCost(pt.bindCost ? String(pt.bindCost) : '');
-    setLamination(pt.lamination || false);
+    setLamination(Boolean(pt.lamination));
+    setLaminationCost(pt.laminationCost !== undefined && pt.laminationCost !== null ? String(pt.laminationCost) : '');
     setNote(pt.note || '');
   };
 
@@ -90,12 +109,14 @@ export default function PaperTypeFormScreen({ route, navigation }) {
     const lastUsed = await getLastUsedForKey('manual');
     if (lastUsed) {
       setGsm(lastUsed.gsm ? String(lastUsed.gsm) : '');
-      setSizeKey(lastUsed.sizeKey || 'A4');
+      setSizeKey(lastUsed.sizeKey || '18 × 23');
       setCustomW(lastUsed.customW ? String(lastUsed.customW) : '');
       setCustomH(lastUsed.customH ? String(lastUsed.customH) : '');
-      setSheets(lastUsed.sheets ? String(lastUsed.sheets) : '');
+      setNoOfSheets(lastUsed.noOfSheets ? String(lastUsed.noOfSheets) : (lastUsed.sheets ? String(lastUsed.sheets) : ''));
       setPrintCost(lastUsed.printCost ? String(lastUsed.printCost) : '');
       setBindCost(lastUsed.bindCost ? String(lastUsed.bindCost) : '');
+      setLamination(Boolean(lastUsed.lamination));
+      setLaminationCost(lastUsed.laminationCost ? String(lastUsed.laminationCost) : '');
     }
   };
 
@@ -109,15 +130,16 @@ export default function PaperTypeFormScreen({ route, navigation }) {
     setTemplateModalVisible(false);
     setTemplateId(t.id);
     setGsm(t.gsm ? String(t.gsm) : '');
-    setSizeKey(t.sizeKey || 'A4');
+    setSizeKey(t.sizeKey || '18 × 23');
     setCustomW(t.customW ? String(t.customW) : '');
     setCustomH(t.customH ? String(t.customH) : '');
-    setSheets(t.sheets ? String(t.sheets) : '');
+    setNoOfSheets(t.noOfSheets ? String(t.noOfSheets) : (t.sheets ? String(t.sheets) : ''));
     setPrintCost(t.printCost ? String(t.printCost) : '');
     setBindCost(t.bindCost ? String(t.bindCost) : '');
+    setLamination(Boolean(t.lamination));
+    setLaminationCost(t.laminationCost ? String(t.laminationCost) : '');
     setNote(t.note || '');
-
-    setPrice(''); // leave empty so chip shows if available
+    setPrice('');
   };
 
   const clearTemplate = async () => {
@@ -125,37 +147,49 @@ export default function PaperTypeFormScreen({ route, navigation }) {
     const lastUsed = await getLastUsedForKey('manual');
     if (lastUsed) {
       setGsm(lastUsed.gsm ? String(lastUsed.gsm) : '');
-      setSizeKey(lastUsed.sizeKey || 'A4');
+      setSizeKey(lastUsed.sizeKey || '18 × 23');
       setCustomW(lastUsed.customW ? String(lastUsed.customW) : '');
       setCustomH(lastUsed.customH ? String(lastUsed.customH) : '');
-      setSheets(lastUsed.sheets ? String(lastUsed.sheets) : '');
+      setNoOfSheets(lastUsed.noOfSheets ? String(lastUsed.noOfSheets) : '');
       setPrintCost(lastUsed.printCost ? String(lastUsed.printCost) : '');
       setBindCost(lastUsed.bindCost ? String(lastUsed.bindCost) : '');
+      setLamination(Boolean(lastUsed.lamination));
+      setLaminationCost(lastUsed.laminationCost ? String(lastUsed.laminationCost) : '');
     } else {
       setGsm('');
-      setSizeKey('A4');
+      setSizeKey('18 × 23');
       setCustomW('');
       setCustomH('');
-      setSheets('');
+      setNoOfSheets('');
       setPrintCost('');
       setBindCost('');
+      setLamination(false);
+      setLaminationCost('');
     }
     setNote('');
     setPrice('');
-    setLamination(false);
   };
 
-  const calcLaminationCost = () => {
-    if (!lamination) return 0;
-    const dims = getDimensionsInches(sizeKey, parseFloat(customW) || 0, parseFloat(customH) || 0);
-    const paperDimension = dims.w * dims.h;
-    return (paperDimension * 0.5) / 100;
+  const handleToggleLamination = (val) => {
+    setLamination(val);
+    if (val) {
+      const area = getAreaSqInches(sizeKey, parseFloat(customW) || 0, parseFloat(customH) || 0);
+      const sheetsVal = parseInt(noOfSheets, 10) || 0;
+      if (area && sheetsVal) {
+        const cost = calcLaminationCost({ areaSqInches: area, noOfSheets: sheetsVal }).toFixed(2);
+        setLaminationCost(cost);
+      } else {
+        setLaminationCost('');
+      }
+    } else {
+      setLaminationCost('');
+    }
   };
 
   const handleSave = async () => {
     const nameVal = name.trim();
     const gsmVal = parseFloat(gsm);
-    const sheetsVal = parseInt(sheets, 10);
+    const sheetsVal = parseInt(noOfSheets, 10);
     const priceVal = parseFloat(price);
 
     if (!nameVal) {
@@ -167,7 +201,7 @@ export default function PaperTypeFormScreen({ route, navigation }) {
       return;
     }
     if (!sheetsVal) {
-      Alert.alert('Validation', 'Sheets is required.');
+      Alert.alert('Validation', 'No. of sheets is required.');
       return;
     }
     if (!priceVal) {
@@ -182,28 +216,32 @@ export default function PaperTypeFormScreen({ route, navigation }) {
     const cw = customW ? parseFloat(customW) : null;
     const ch = customH ? parseFloat(customH) : null;
 
-    const area = getArea(sizeKey, cw, ch);
-    if (area === null) {
+    const areaSqInches = getAreaSqInches(sizeKey, cw, ch);
+    if (!areaSqInches) {
       Alert.alert('Validation', 'Invalid size. Please check custom dimensions.');
       return;
     }
 
-    const paperCost = calcPaperCost({
+    const perSheetCost = calcPerSheetCost({
+      areaSqInches,
       gsm: gsmVal,
-      area,
       pricePerKg: priceVal,
-      sheets: sheetsVal,
+    });
+
+    const paperCost = calcPaperCost({
+      noOfSheets: sheetsVal,
+      perSheetCost,
     });
 
     const pcVal = printCost ? parseFloat(printCost) : 0;
     const bcVal = bindCost ? parseFloat(bindCost) : 0;
-    const laminationCost = calcLaminationCost();
+    const lamCostVal = lamination ? (parseFloat(laminationCost) || 0) : 0;
 
-    const totalPerCopy = calcTotalPerCopy({
+    const totalCost = calcTotalCost({
       paperCost,
       printCost: pcVal,
       bindCost: bcVal,
-      laminationCost,
+      laminationCost: lamCostVal,
     });
 
     const paperType = {
@@ -213,16 +251,17 @@ export default function PaperTypeFormScreen({ route, navigation }) {
       sizeKey,
       customW: cw,
       customH: ch,
-      sheets: sheetsVal,
+      noOfSheets: sheetsVal,
       price: priceVal,
       printCost: pcVal,
       bindCost: bcVal,
       lamination,
-      laminationCost,
+      laminationCost: lamCostVal,
       note: note.trim(),
-      area,
+      areaSqInches,
+      perSheetCost,
       paperCost,
-      totalPerCopy,
+      totalCost,
     };
 
     // Update lastUsed for manual defaults
@@ -231,9 +270,11 @@ export default function PaperTypeFormScreen({ route, navigation }) {
       sizeKey,
       customW: cw,
       customH: ch,
-      sheets: sheetsVal,
+      noOfSheets: sheetsVal,
       printCost: pcVal,
       bindCost: bcVal,
+      lamination,
+      laminationCost: lamCostVal,
     });
 
     // Update lastUsed for prices based on GSM and Size pair
@@ -309,13 +350,13 @@ export default function PaperTypeFormScreen({ route, navigation }) {
         />
       </FieldRow>
 
-      <FieldRow label="Sheets per Copy *">
+      <FieldRow label="No. of Sheets *">
         <TextInput
           style={styles.input}
-          value={sheets}
-          onChangeText={setSheets}
+          value={noOfSheets}
+          onChangeText={setNoOfSheets}
           keyboardType="number-pad"
-          placeholder="e.g. 200"
+          placeholder="e.g. 500"
           placeholderTextColor="#9CA3AF"
         />
       </FieldRow>
@@ -346,17 +387,34 @@ export default function PaperTypeFormScreen({ route, navigation }) {
         />
       </FieldRow>
 
-      <FieldRow label="Lamination">
-        <View style={styles.laminationRow}>
-          <Switch
-            value={lamination}
-            onValueChange={setLamination}
-            trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
-            thumbColor={lamination ? '#FFFFFF' : '#F9FAFB'}
-          />
-          <Text style={styles.laminationHint}>
-            {lamination ? `₹${calcLaminationCost().toFixed(2)} per copy` : 'Off'}
-          </Text>
+      <FieldRow label="Lamination Cost (₹)">
+        <View style={styles.laminationContainer}>
+          <View style={styles.laminationToggleRow}>
+            <Switch
+              value={lamination}
+              onValueChange={handleToggleLamination}
+              trackColor={{ false: '#D1D5DB', true: '#1E293B' }}
+              thumbColor={lamination ? '#FFFFFF' : '#F9FAFB'}
+            />
+            <Text style={styles.laminationToggleText}>
+              {lamination ? 'Lamination active' : 'No lamination'}
+            </Text>
+          </View>
+          {lamination && (
+            <View style={styles.laminationInputWrapper}>
+              <TextInput
+                style={styles.input}
+                value={laminationCost}
+                onChangeText={setLaminationCost}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
+              />
+              <Text style={styles.laminationFormulaHint}>
+                Formula: ((sheet area × 0.5) / 100) × no. of sheets
+              </Text>
+            </View>
+          )}
         </View>
       </FieldRow>
 
@@ -474,15 +532,27 @@ const styles = StyleSheet.create({
     height: 80,
     paddingTop: 12,
   },
-  laminationRow: {
+  laminationContainer: {
+    gap: 8,
+  },
+  laminationToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  laminationHint: {
+  laminationToggleText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#4B5563',
     fontWeight: '500',
+  },
+  laminationInputWrapper: {
+    marginTop: 4,
+    gap: 4,
+  },
+  laminationFormulaHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
   saveBtn: {
     backgroundColor: '#1E293B',

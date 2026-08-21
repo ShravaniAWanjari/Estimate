@@ -6,10 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Switch,
   StyleSheet,
 } from 'react-native';
 import uuid from 'react-native-uuid';
 import { getTemplates, saveTemplate } from '../../storage/templates';
+import { getAreaSqInches } from '../../utils/sizes';
+import { calcLaminationCost } from '../../utils/formula';
 import FieldRow from '../../components/FieldRow';
 import SizeSelector from '../../components/SizeSelector';
 
@@ -18,12 +21,14 @@ export default function TemplateFormScreen({ route, navigation }) {
 
   const [name, setName] = useState('');
   const [gsm, setGsm] = useState('');
-  const [sizeKey, setSizeKey] = useState('A4');
+  const [sizeKey, setSizeKey] = useState('18 × 23');
   const [customW, setCustomW] = useState('');
   const [customH, setCustomH] = useState('');
-  const [sheets, setSheets] = useState('');
+  const [noOfSheets, setNoOfSheets] = useState('');
   const [printCost, setPrintCost] = useState('');
   const [bindCost, setBindCost] = useState('');
+  const [lamination, setLamination] = useState(false);
+  const [laminationCost, setLaminationCost] = useState('');
   const [note, setNote] = useState('');
 
   useEffect(() => {
@@ -41,13 +46,31 @@ export default function TemplateFormScreen({ route, navigation }) {
     if (t) {
       setName(t.name || '');
       setGsm(t.gsm ? String(t.gsm) : '');
-      setSizeKey(t.sizeKey || 'A4');
+      setSizeKey(t.sizeKey || '18 × 23');
       setCustomW(t.customW ? String(t.customW) : '');
       setCustomH(t.customH ? String(t.customH) : '');
-      setSheets(t.sheets ? String(t.sheets) : '');
+      setNoOfSheets(t.noOfSheets ? String(t.noOfSheets) : (t.sheets ? String(t.sheets) : ''));
       setPrintCost(t.printCost ? String(t.printCost) : '');
       setBindCost(t.bindCost ? String(t.bindCost) : '');
+      setLamination(Boolean(t.lamination));
+      setLaminationCost(t.laminationCost !== undefined && t.laminationCost !== null ? String(t.laminationCost) : '');
       setNote(t.note || '');
+    }
+  };
+
+  const handleToggleLamination = (val) => {
+    setLamination(val);
+    if (val) {
+      const area = getAreaSqInches(sizeKey, parseFloat(customW) || 0, parseFloat(customH) || 0);
+      const sheetsVal = parseInt(noOfSheets, 10) || 0;
+      if (area && sheetsVal) {
+        const cost = calcLaminationCost({ areaSqInches: area, noOfSheets: sheetsVal }).toFixed(2);
+        setLaminationCost(cost);
+      } else {
+        setLaminationCost('');
+      }
+    } else {
+      setLaminationCost('');
     }
   };
 
@@ -57,6 +80,8 @@ export default function TemplateFormScreen({ route, navigation }) {
       return;
     }
 
+    const lamCostVal = lamination ? (parseFloat(laminationCost) || 0) : null;
+
     const template = {
       id: templateId || uuid.v4(),
       name: name.trim(),
@@ -64,9 +89,11 @@ export default function TemplateFormScreen({ route, navigation }) {
       sizeKey,
       customW: customW ? parseFloat(customW) : null,
       customH: customH ? parseFloat(customH) : null,
-      sheets: sheets ? parseInt(sheets, 10) : null,
+      noOfSheets: noOfSheets ? parseInt(noOfSheets, 10) : null,
       printCost: printCost ? parseFloat(printCost) : null,
       bindCost: bindCost ? parseFloat(bindCost) : null,
+      lamination,
+      laminationCost: lamCostVal,
       note: note.trim(),
     };
 
@@ -112,13 +139,13 @@ export default function TemplateFormScreen({ route, navigation }) {
         />
       </FieldRow>
 
-      <FieldRow label="Sheets per Copy">
+      <FieldRow label="No. of Sheets">
         <TextInput
           style={styles.input}
-          value={sheets}
-          onChangeText={setSheets}
+          value={noOfSheets}
+          onChangeText={setNoOfSheets}
           keyboardType="number-pad"
-          placeholder="e.g. 200"
+          placeholder="e.g. 500"
           placeholderTextColor="#9CA3AF"
         />
       </FieldRow>
@@ -143,6 +170,32 @@ export default function TemplateFormScreen({ route, navigation }) {
           placeholder="0"
           placeholderTextColor="#9CA3AF"
         />
+      </FieldRow>
+
+      <FieldRow label="Lamination Cost (₹)">
+        <View style={styles.laminationContainer}>
+          <View style={styles.laminationToggleRow}>
+            <Switch
+              value={lamination}
+              onValueChange={handleToggleLamination}
+              trackColor={{ false: '#D1D5DB', true: '#1E293B' }}
+              thumbColor={lamination ? '#FFFFFF' : '#F9FAFB'}
+            />
+            <Text style={styles.laminationToggleText}>
+              {lamination ? 'Lamination active' : 'No lamination'}
+            </Text>
+          </View>
+          {lamination && (
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              value={laminationCost}
+              onChangeText={setLaminationCost}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor="#9CA3AF"
+            />
+          )}
+        </View>
       </FieldRow>
 
       <FieldRow label="Note">
@@ -187,6 +240,19 @@ const styles = StyleSheet.create({
   noteInput: {
     height: 80,
     paddingTop: 12,
+  },
+  laminationContainer: {
+    gap: 8,
+  },
+  laminationToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  laminationToggleText: {
+    fontSize: 14,
+    color: '#4B5563',
+    fontWeight: '500',
   },
   saveBtn: {
     backgroundColor: '#1E293B',
